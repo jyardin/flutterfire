@@ -958,6 +958,7 @@ final class FirestoreMessageCodec extends StandardMessageCodec {
   private static final byte INCREMENT_DOUBLE = (byte) 137;
   private static final byte INCREMENT_INTEGER = (byte) 138;
   private static final byte DOCUMENT_ID = (byte) 139;
+  private static final byte FIELD_PATH = (byte) 140;
 
   @Override
   protected void writeValue(ByteArrayOutputStream stream, Object value) {
@@ -1023,6 +1024,15 @@ final class FirestoreMessageCodec extends StandardMessageCodec {
         return FieldValue.increment(doubleIncrementValue.doubleValue());
       case DOCUMENT_ID:
         return FieldPath.documentId();
+      case FIELD_PATH:
+        final int segmentsLength = readSize(buffer);
+        final String[] segments = new String[segmentsLength];
+        for (int i = 0; i < segmentsLength; i++) {
+          final byte[] segmentBytes = readBytes(buffer);
+          String segment = new String(segmentBytes, UTF8);
+          segments[i] = segment;
+        }
+        return FieldPath.of(segments);
       default:
         return super.readValueOfType(type, buffer);
     }

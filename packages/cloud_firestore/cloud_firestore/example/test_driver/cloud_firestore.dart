@@ -328,6 +328,31 @@ void main() {
       expect(result.documentID, documentId);
     });
 
+    test('field path with dots', () async {
+      final CollectionReference messages = firestore.collection('messages');
+      // Use document ID as a unique identifier to ensure that we don't
+      // collide with other tests running against this database.
+      final DocumentReference doc = messages.document();
+
+      await doc.setData({'map': {
+        'key.with.dots': 'value'
+      }});
+
+      // Test if the field path is found in the document.
+      final snapshot = await messages
+          .where(FieldPath.fromSegments(['map', 'key.with.dots']), isEqualTo: 'value')
+          .getDocuments();
+
+      // Cleanup
+      await doc.delete();
+
+      final List<DocumentSnapshot> results = snapshot.documents;
+      expect(results.length, 1);
+
+      final result = results[0];
+      expect(result.data['map']['key.with.dots'], 'value');
+    });
+
     test('Query.whereIn', () async {
       final CollectionReference ref = firestore.collection('cities');
       await ref.document('la').setData(<String, dynamic>{

@@ -1045,7 +1045,7 @@ void main() {
         );
       });
 
-      test('FieldPath', () async {
+      test('FieldPath documentId', () async {
         await collectionReference
             .where(FieldPath.documentId, isEqualTo: 'bar')
             .getDocuments();
@@ -1070,6 +1070,34 @@ void main() {
           ]),
         );
       });
+
+      test('FieldPath segments', () async {
+        final fieldPath = FieldPath.fromSegments(['foo', 'bar']);
+        await collectionReference
+            .where(fieldPath, isEqualTo: 'baz')
+            .getDocuments();
+        expect(
+          log,
+          equals(<Matcher>[
+            isMethodCall(
+              'Query#getDocuments',
+              arguments: <String, dynamic>{
+                'app': app.name,
+                'path': 'foo',
+                'isCollectionGroup': false,
+                'parameters': <String, dynamic>{
+                  'where': <List<dynamic>>[
+                    <dynamic>[fieldPath, '==', 'baz'],
+                  ],
+                  'orderBy': <List<dynamic>>[],
+                },
+                'source': 'default',
+              },
+            ),
+          ]),
+        );
+      });
+      
       test('orderBy assertions', () async {
         // Can only order by the same field once.
         expect(() {
@@ -1155,8 +1183,12 @@ void main() {
         _checkEncodeDecode<dynamic>(codec, FieldValue.increment(1));
       });
 
-      test('encode and decode FieldPath', () {
+      test('encode and decode FieldPath.documentId', () {
         _checkEncodeDecode<dynamic>(codec, FieldPath.documentId);
+      });
+
+      test('encode and decode FieldPath segments', () {
+        _checkEncodeDecode<dynamic>(codec, FieldPath.fromSegments(['foo', 'bar']));
       });
     });
 

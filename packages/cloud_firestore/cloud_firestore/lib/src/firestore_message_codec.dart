@@ -20,9 +20,9 @@ class FirestoreMessageCodec extends StandardMessageCodec {
   static const int _kIncrementDouble = 137;
   static const int _kIncrementInteger = 138;
   static const int _kDocumentId = 139;
+  static const int _kFieldPath = 140;
 
-  static const Map<FieldValueType, int> _kFieldValueCodes =
-      <FieldValueType, int>{
+  static const Map<FieldValueType, int> _kFieldValueCodes = <FieldValueType, int>{
     FieldValueType.arrayUnion: _kArrayUnion,
     FieldValueType.arrayRemove: _kArrayRemove,
     FieldValueType.delete: _kDelete,
@@ -31,9 +31,9 @@ class FirestoreMessageCodec extends StandardMessageCodec {
     FieldValueType.incrementInteger: _kIncrementInteger,
   };
 
-  static const Map<_FieldPathType, int> _kFieldPathCodes =
-      <_FieldPathType, int>{
+  static const Map<_FieldPathType, int> _kFieldPathCodes = <_FieldPathType, int>{
     _FieldPathType.documentId: _kDocumentId,
+    _FieldPathType.path: _kFieldPath,
   };
 
   @override
@@ -66,10 +66,21 @@ class FirestoreMessageCodec extends StandardMessageCodec {
       assert(code != null);
       buffer.putUint8(code);
       if (value.value != null) writeValue(buffer, value.value);
-    } else if (value is FieldPath) {
+    } else if (value is FieldPath && value.type == _FieldPathType.documentId) {
       final int code = _kFieldPathCodes[value.type];
       assert(code != null);
       buffer.putUint8(code);
+    } else if (value is FieldPath && value.type == _FieldPathType.path) {
+      final int code = _kFieldPathCodes[value.type];
+      assert(code != null);
+      buffer.putUint8(code);
+      final segmentsLength = value.segments.length;
+      writeSize(buffer, segmentsLength);
+      for (var segment in value.segments) {
+        final List<int> segmentList = utf8.encoder.convert(segment);
+        writeSize(buffer, segmentList.length);
+        buffer.putUint8List(segmentList);
+      }
     } else {
       super.writeValue(buffer, value);
     }
@@ -86,13 +97,11 @@ class FirestoreMessageCodec extends StandardMessageCodec {
         return GeoPoint(buffer.getFloat64(), buffer.getFloat64());
       case _kDocumentReference:
         final int appNameLength = readSize(buffer);
-        final String appName =
-            utf8.decoder.convert(buffer.getUint8List(appNameLength));
+        final String appName = utf8.decoder.convert(buffer.getUint8List(appNameLength));
         final FirebaseApp app = FirebaseApp(name: appName);
         final Firestore firestore = Firestore(app: app);
         final int pathLength = readSize(buffer);
-        final String path =
-            utf8.decoder.convert(buffer.getUint8List(pathLength));
+        final String path = utf8.decoder.convert(buffer.getUint8List(pathLength));
         return firestore.document(path);
       case _kBlob:
         final int length = readSize(buffer);
@@ -116,6 +125,15 @@ class FirestoreMessageCodec extends StandardMessageCodec {
         return FieldValue.increment(value);
       case _kDocumentId:
         return FieldPath.documentId;
+      case _kFieldPath:
+        final int segmentsLength = readSize(buffer);
+        final segments = List<String>();
+        for (int i = 0; i < segmentsLength; i++) {
+          final int segmentLengh = readSize(buffer);
+          final String segment = utf8.decoder.convert(buffer.getUint8List(segmentLengh));
+          segments.add(segment);
+        }
+        return FieldPath.fromSegments(segments);
       default:
         return super.readValueOfType(type, buffer);
     }
