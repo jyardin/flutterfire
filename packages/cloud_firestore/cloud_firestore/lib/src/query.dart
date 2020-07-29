@@ -352,7 +352,7 @@ class Query {
     void addCondition(dynamic field, String operator, dynamic value) {
       FieldPath fieldPath =
           field is String ? FieldPath.fromString(field) : field as FieldPath;
-      final List<dynamic> condition = <dynamic>[fieldPath, operator, value];
+      final List<dynamic> condition = <dynamic>[fieldPath, operator, _CodecUtility.valueEncode(value)];
       assert(
           conditions
               .where((List<dynamic> item) => equality.equals(condition, item))
